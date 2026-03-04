@@ -1,4 +1,7 @@
-import type { WalletClient, PublicClient, Hash, Address } from "viem";
+import type { WalletClient, PublicClient, Hash, Address, Account, Chain, Transport } from "viem";
+import { deployToken as apiDeploy, type DeployParams } from "./clawnch-api";
+
+type ConnectedWalletClient = WalletClient<Transport, Chain, Account>;
 
 export type FeePreference = "Clawnch" | "Paired" | "Both";
 export type PairedToken = "WETH" | "USDC";
@@ -25,31 +28,18 @@ export interface DeployTokenResult {
 }
 
 export async function deployToken(
-  walletClient: WalletClient,
+  apiKey: string,
+  walletClient: ConnectedWalletClient,
   publicClient: PublicClient,
   form: DeployFormData
 ): Promise<DeployTokenResult> {
-  // Use webpack alias to bypass package.json exports restriction
-  const { ClawnchDeployer } = await import(
-    /* webpackIgnore: false */
-    "@clawnch/clawncher-sdk/deployer"
-  );
-
   const address = walletClient.account!.address;
 
-  const deployer = new ClawnchDeployer({
-    wallet: walletClient as any,
-    publicClient,
-    network: "mainnet",
-  });
-
-  const options: any = {
+  const params: DeployParams = {
     name: form.name,
     symbol: form.symbol,
-    tokenAdmin: address,
     image: form.image || undefined,
-    metadata: form.description ? { description: form.description } : undefined,
-    pairedToken: form.pairedToken,
+    description: form.description || undefined,
     rewards: {
       recipients: [
         {
@@ -63,7 +53,7 @@ export async function deployToken(
   };
 
   if (form.vaultEnabled && form.vaultPercentage > 0) {
-    options.vault = {
+    params.vault = {
       percentage: form.vaultPercentage,
       lockupDuration: form.vaultLockupDays * 86400,
       vestingDuration: form.vaultVestingDays * 86400,
@@ -74,25 +64,17 @@ export async function deployToken(
   if (form.devBuyEnabled && form.devBuyEth) {
     const ethFloat = parseFloat(form.devBuyEth);
     if (ethFloat > 0) {
-      options.devBuy = {
-        ethAmount: BigInt(Math.floor(ethFloat * 1e18)),
+      params.devBuy = {
+        ethAmount: String(BigInt(Math.floor(ethFloat * 1e18))),
         recipient: address,
       };
     }
   }
 
-  const result = await deployer.deploy(options);
+  const result = await apiDeploy(apiKey, walletClient, publicClient, params);
 
-  if (result.error) {
-    return { error: result.error.message };
-  }
-
-  const out: DeployTokenResult = { txHash: result.txHash };
-
-  if (result.txHash) {
-    const { address: tokenAddr } = await result.waitForTransaction();
-    if (tokenAddr) out.tokenAddress = tokenAddr;
-  }
-
-  return out;
+  return {
+    txHash: result.txHash,
+    tokenAddress: result.tokenAddress,
+  };
 }
