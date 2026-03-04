@@ -12,7 +12,8 @@ import {
   type Address,
 } from "viem";
 
-const API_BASE = "https://clawn.ch";
+// Use local API routes as proxy to avoid CORS issues
+const API_BASE = "";
 
 type ConnectedWalletClient = WalletClient<Transport, Chain, Account>;
 
