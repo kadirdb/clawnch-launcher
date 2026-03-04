@@ -13,11 +13,10 @@ const nextConfig: NextConfig = {
       };
     }
 
-    // Allow importing ClawnchDeployer directly (not exported from package barrel)
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@clawnch/clawncher-sdk/deployer": path.resolve(
-        __dirname,
+      "@clawnch/clawncher-sdk/deployer": path.join(
+        process.cwd(),
         "node_modules/@clawnch/clawncher-sdk/dist/deployer.js"
       ),
     };
